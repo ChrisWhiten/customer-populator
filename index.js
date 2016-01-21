@@ -2,9 +2,9 @@ var fs = require('fs');
 var Intercom = require('intercom-client');
 var request = require('request');
 
-function login(username, password, cb) {
+function login(baseUrl, username, password, cb) {
   var options = {
-    url: 'https://callhome.solinkcloud.com/api/auth/login',
+    url: baseUrl + '/api/auth/login',
     json: {
       username: username,
       password: password
@@ -26,9 +26,9 @@ function login(username, password, cb) {
   });
 }
 
-function listCustomers(jwt, cb) {
+function listCustomers(baseUrl, jwt, cb) {
   var options = {
-    url: 'https://callhome.solinkcloud.com/api/customers?filter[fields][name]=true&filter[fields][id]=true&filter[limit]=99999999',
+    url: baseUrl + '/api/customers?filter[fields][name]=true&filter[fields][id]=true&filter[limit]=99999999',
     headers: {
       Authorization: 'Bearer ' + jwt
     }
@@ -49,23 +49,17 @@ function listCustomers(jwt, cb) {
   });
 }
 
-fs.readFile('params.json', {encoding: 'utf-8'}, function (err, data) {
-  if (err) {
-    console.log(err);
-    return;
-  }
-
-  var params = JSON.parse(data);
-  login(params.callHomeUsername, params.callHomePassword, function (err, jwt) {
+function syncIntercomUsers(baseUrl, prefix, username, password, appId, apiKey) {
+  login(baseUrl, username, password, function (err, jwt) {
     if (err) {
       console.log('could not log in to call home: ', err);
       return;
     }
 
-    listCustomers(jwt, function(err, customers) {
+    listCustomers(baseUrl, jwt, function(err, customers) {
       var client = new Intercom.Client({
-        appId: params.intercomAppId,
-        appApiKey: params.intercomApiKey
+        appId: appId,
+        appApiKey: apiKey
       }).usePromises();
 
       // creating a company that already exists seems to be a no-op,
@@ -73,7 +67,7 @@ fs.readFile('params.json', {encoding: 'utf-8'}, function (err, data) {
       customers.forEach(function (company) {
         client.companies.create({
         company_id: company.id,
-        name: company.name
+        name: prefix + company.name
       })
         .then(function (response) {
           if (!response.ok) {
@@ -99,4 +93,19 @@ fs.readFile('params.json', {encoding: 'utf-8'}, function (err, data) {
 
     });
   });
+}
+
+fs.readFile('params.json', {encoding: 'utf-8'}, function (err, data) {
+  if (err) {
+    console.log(err);
+    return;
+  }
+
+  var params = JSON.parse(data);
+  syncIntercomUsers('https://callhome.solinkcloud.com', '',
+    params.callHomeUsername, params.callHomePassword,
+    params.intercomAppId, params.intercomApiKey);
+  syncIntercomUsers('https://test-callhome.solinkcloud.com', 'Integration - ',
+    params.integrationCallHomeUsername, params.integrationCallHomePassword,
+    params.intercomAppId, params.intercomApiKey);
 });
