@@ -102,10 +102,7 @@ fs.readFile('params.json', {encoding: 'utf-8'}, function (err, data) {
   }
 
   var params = JSON.parse(data);
-  syncIntercomUsers('https://callhome.solinkcloud.com', '',
+  syncIntercomUsers(params.callHomeUrl, params.prefix,
     params.callHomeUsername, params.callHomePassword,
-    params.intercomAppId, params.intercomApiKey);
-  syncIntercomUsers('https://test-callhome.solinkcloud.com', 'Integration - ',
-    params.integrationCallHomeUsername, params.integrationCallHomePassword,
     params.intercomAppId, params.intercomApiKey);
 });
